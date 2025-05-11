@@ -1,0 +1,30 @@
+body {
+  margin: 0;
+  background: #fdd0e8;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  background: linear-gradient(to top, #fcb6ce, #ffd6e8);
+}
+
+#controls {
+  position: fixed;
+  bottom: 20px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+}
+
+#controls button {
+  width: 60px;
+  height: 60px;
+  font-size: 24px;
+  background: #ff6290;
+  border: none;
+  border-radius: 50%;
+  color: white;
+  box-shadow: 2px 2px 5px #aaa;
+}
