@@ -1,47 +1,20 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rompeburbuja de Amor</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="icon.png">
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #f7b8d4;
-        }
-        canvas {
-            display: block;
-            margin: 0 auto;
-        }
-        .game-controls {
-            position: absolute;
-            bottom: 20px;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-        }
-        .btn {
-            width: 50px;
-            height: 50px;
-            background-color: rgba(255, 0, 0, 0.8);
-            border-radius: 50%;
-            cursor: pointer;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Juego Alex</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
-    
-    <!-- Controles para el juego -->
-    <div class="game-controls">
-        <button class="btn" id="upButton">↑</button>
-        <button class="btn" id="shootButton">💘</button>
-    </div>
+  <canvas id="gameCanvas"></canvas>
 
-    <script src="game.js"></script>
+  <!-- Controles táctiles -->
+  <div id="controls">
+    <button id="btnUp">↑</button>
+    <button id="btnShoot">💘</button>
+  </div>
+
+  <script src="game.js"></script>
 </body>
 </html>
