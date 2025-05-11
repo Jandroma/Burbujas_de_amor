@@ -4,186 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rompeburbuja de Amor</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon.png">
     <style>
-        body, html {
+        body {
             margin: 0;
-            padding: 0;
-            height: 100%;
-            background-color: #f4c4f3;
+            overflow: hidden;
+            background-color: #f7b8d4;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+        }
+        .game-controls {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
             display: flex;
             justify-content: center;
-            align-items: center;
-            font-family: Arial, sans-serif;
+            gap: 20px;
         }
-        #game-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            align-items: center;
-        }
-        #heart {
-            position: absolute;
+        .btn {
             width: 50px;
             height: 50px;
-            background-color: red;
-            clip-path: polygon(50% 0%, 100% 35%, 80% 100%, 20% 100%, 0% 35%);
-            transform: translate(-50%, -50%);
-        }
-        #bubble {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            background-color: pink;
+            background-color: rgba(255, 0, 0, 0.8);
             border-radius: 50%;
-            transform: translate(-50%, -50%);
-        }
-        #up-button, #shoot-button {
-            position: fixed;
-            bottom: 50px;
-            background-color: #ff69b4;
-            border: none;
-            padding: 15px;
-            border-radius: 10px;
             cursor: pointer;
-        }
-        #up-button {
-            left: 20px;
-        }
-        #shoot-button {
-            right: 20px;
-        }
-        #tutorial {
-            position: fixed;
-            top: 20px;
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
         }
     </style>
 </head>
 <body>
-    <div id="game-container">
-        <div id="heart"></div>
-        <div id="tutorial">¡Haz clic en las flechas para subir y disparar!</div>
-        <button id="up-button">↑</button>
-        <button id="shoot-button">💘</button>
+    <canvas id="gameCanvas"></canvas>
+    
+    <!-- Controles para el juego -->
+    <div class="game-controls">
+        <button class="btn" id="upButton">↑</button>
+        <button class="btn" id="shootButton">💘</button>
     </div>
 
-    <script>
-        // Variables
-        let heart = document.getElementById('heart');
-        let upButton = document.getElementById('up-button');
-        let shootButton = document.getElementById('shoot-button');
-        let tutorial = document.getElementById('tutorial');
-        let gravity = 0.5; // Gravedad
-        let speed = 0; // Velocidad inicial
-        let heartPosY = window.innerHeight - 100; // Posición inicial del corazón
-        let bubbles = [];
-        let level = 1;
-        let phrase = "ÁLEX";
-        let progress = 0;
-
-        // Función de actualización del juego
-        function updateGame() {
-            heartPosY += speed;
-            speed += gravity;
-            if (heartPosY >= window.innerHeight - 100) {
-                heartPosY = window.innerHeight - 100; // Limitar la caída
-                speed = 0;
-            }
-            heart.style.top = `${heartPosY}px`;
-
-            // Lógica de burbujas
-            if (Math.random() < 0.01) {
-                createBubble();
-            }
-
-            // Actualización de burbujas
-            for (let i = 0; i < bubbles.length; i++) {
-                bubbles[i].style.top = `${parseFloat(bubbles[i].style.top) + 2}px`;
-                if (parseFloat(bubbles[i].style.top) > window.innerHeight) {
-                    bubbles[i].remove();
-                    bubbles.splice(i, 1);
-                    i--;
-                }
-            }
-
-            // Verificar colisiones
-            for (let i = 0; i < bubbles.length; i++) {
-                let bubble = bubbles[i];
-                if (checkCollision(heart, bubble)) {
-                    progress++;
-                    bubble.remove();
-                    bubbles.splice(i, 1);
-                    i--;
-                    if (progress >= phrase.length) {
-                        level++;
-                        progress = 0;
-                        phrase = getNextPhrase(level);
-                    }
-                }
-            }
-
-            // Mostrar el progreso
-            tutorial.textContent = `Frase: ${phrase.slice(0, progress)} ${phrase.slice(progress).split("").join(" ")} | Nivel: ${level}`;
-        }
-
-        // Función para crear burbujas
-        function createBubble() {
-            let bubble = document.createElement('div');
-            bubble.classList.add('bubble');
-            bubble.style.left = `${Math.random() * window.innerWidth}px`;
-            bubble.style.top = `0px`;
-            bubble.textContent = phrase[progress];
-            document.getElementById('game-container').appendChild(bubble);
-            bubbles.push(bubble);
-        }
-
-        // Comprobar colisión entre corazón y burbuja
-        function checkCollision(heart, bubble) {
-            let heartRect = heart.getBoundingClientRect();
-            let bubbleRect = bubble.getBoundingClientRect();
-            return !(heartRect.right < bubbleRect.left || 
-                heartRect.left > bubbleRect.right || 
-                heartRect.bottom < bubbleRect.top || 
-                heartRect.top > bubbleRect.bottom);
-        }
-
-        // Obtener siguiente frase
-        function getNextPhrase(level) {
-            let phrases = [
-                "ÁLEX", 
-                "TE QUIERO, ÁLEX", 
-                "ERES MUY ESPECIAL", 
-                "ME ENCANTAS DE VERDAD", 
-                "PIENSO EN TI CADA DÍA", 
-                "TU SONRISA ILUMINA TODO", 
-                "GRACIAS POR EXISTIR", 
-                "ERES MI ALEGRÍA DIARIA", 
-                "NO PUEDO DEJAR DE AMARTE", 
-                "TE AMO, ÁLEX, PARA SIEMPRE"
-            ];
-            return phrases[level - 1] || phrases[9];
-        }
-
-        // Mover corazón hacia arriba
-        upButton.addEventListener('click', function() {
-            speed = -10;
-        });
-
-        // Disparar
-        shootButton.addEventListener('click', function() {
-            createBubble();
-        });
-
-        // Iniciar juego
-        setInterval(updateGame, 1000 / 60);
-
-    </script>
+    <script src="game.js"></script>
 </body>
 </html>
