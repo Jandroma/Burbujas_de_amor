@@ -1,0 +1,16 @@
+{
+    "name": "Rompeburbuja de Amor",
+    "short_name": "Rompeburbuja",
+    "description": "Un juego de habilidad para conseguir frases de amor.",
+    "start_url": "index.html",
+    "display": "standalone",
+    "background_color": "#f4c4f3",
+    "theme_color": "#ff69b4",
+    "icons": [
+        {
+            "src": "icon.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        }
+    ]
+}
