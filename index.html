@@ -1,194 +1,155 @@
-<!DOCTYPE html>
-<html lang="es">
+<!DOCTYPE html><html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Burbujas de Amor</title>
+  <title>Rompeburbuja de Amor</title>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: #ffe6f0;
-      touch-action: none;
-      font-family: 'Arial', sans-serif;
-    }
-    canvas {
-      display: block;
-      background: #ffccdd;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; font-family: sans-serif; }
+    canvas { background: linear-gradient(to bottom, #ffdee9, #b5fffc); display: block; margin: 0 auto; }
     #controls {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.2);
       display: flex;
-      gap: 10px;
-      z-index: 10;
+      justify-content: space-around;
+      align-items: center;
     }
     .btn {
-      width: 60px;
-      height: 60px;
-      background: pink;
-      border: none;
+      width: 60px; height: 60px;
       border-radius: 50%;
+      border: none;
+      background-color: #ff5e8e;
+      color: white;
       font-size: 20px;
-      box-shadow: 2px 2px 8px #0003;
-      user-select: none;
+    }
+    #scoreboard {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: rgba(0,0,0,0.4);
+      color: white;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 18px;
     }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
+  <canvas id="game"></canvas>
   <div id="controls">
-    <button class="btn" id="leftBtn">←</button>
-    <button class="btn" id="upBtn">↑</button>
-    <button class="btn" id="rightBtn">→</button>
-    <button class="btn" id="shootBtn">❤</button>
+    <button class="btn" id="left">◀️</button>
+    <button class="btn" id="up">🔼</button>
+    <button class="btn" id="right">▶️</button>
+    <button class="btn" id="shoot">❤️</button>
   </div>
-
-  <script>
-    const canvas = document.getElementById("gameCanvas");
+  <div id="scoreboard">Puntos: 0 | Letras: <span id="letters">_ _ _ _</span></div>  <script>
+    const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.height = window.innerHeight - 120;
 
-    let heart = { x: canvas.width / 2, y: canvas.height / 2, r: 30, dx: 0, dy: 0 };
-    let letters = [];
-    let bullets = [];
-    let targetWord = "ÁLEX";
-    let collected = "";
-    let points = 0;
-    let level = 0;
-    const phrases = [
-      "ÁLEX", "TE QUIERO", "TE QUIERO, ÁLEX", "SIEMPRE CONTIGO",
-      "ERES MI TODO", "MI VIDA ERES TÚ", "NUNCA TE OLVIDO",
-      "AMOR INFINITO", "CADA DÍA MÁS", "JUNTOS POR SIEMPRE"
-    ];
+    const player = { x: canvas.width/2, y: canvas.height/2, vx: 0, vy: 0, size: 40 };
+    const keys = { left: false, right: false, up: false };
+    const bullets = [];
+    const letters = [];
+    let score = 0;
+    const needed = "ÁLEX";
+    let collected = [];
 
-    function spawnLetter() {
-      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚ";
-      const needed = targetWord.replaceAll(" ", "").split("").filter(c => !collected.includes(c));
-      const pool = [...needed, ...Array(5).fill(null).map(() => chars[Math.floor(Math.random() * chars.length)])];
-      const char = pool[Math.floor(Math.random() * pool.length)];
-      letters.push({
-        char,
-        x: Math.random() * (canvas.width - 40) + 20,
-        y: -50,
-        size: 36
-      });
-    }
-
-    setInterval(spawnLetter, 1200);
-
-    function drawHeart() {
+    function drawHeart(x, y) {
+      ctx.fillStyle = "#ff3366";
       ctx.beginPath();
-      ctx.fillStyle = "red";
-      const { x, y, r } = heart;
       ctx.moveTo(x, y);
-      ctx.bezierCurveTo(x - r, y - r, x - r * 2, y + r / 2, x, y + r * 2);
-      ctx.bezierCurveTo(x + r * 2, y + r / 2, x + r, y - r, x, y);
+      ctx.bezierCurveTo(x, y - 15, x - 25, y - 15, x - 25, y);
+      ctx.bezierCurveTo(x - 25, y + 15, x, y + 30, x, y + 40);
+      ctx.bezierCurveTo(x, y + 30, x + 25, y + 15, x + 25, y);
+      ctx.bezierCurveTo(x + 25, y - 15, x, y - 15, x, y);
       ctx.fill();
     }
 
-    function drawLetters() {
-      for (let l of letters) {
-        ctx.fillStyle = "#333";
-        ctx.font = `${l.size}px bold Arial`;
-        ctx.fillText(l.char, l.x, l.y);
-      }
+    function drawBullet(b) {
+      ctx.fillStyle = "#ff6699";
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 10, 0, Math.PI * 2);
+      ctx.fill();
     }
 
-    function drawBullets() {
-      ctx.fillStyle = "pink";
-      for (let b of bullets) {
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, 8, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    function drawUI() {
-      ctx.fillStyle = "#222";
+    function drawLetter(l) {
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(l.x, l.y, 25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#000";
       ctx.font = "20px sans-serif";
-      ctx.fillText(`Frase: ${phrases[level]}`, 20, 30);
-      ctx.fillText(`Letras: ${collected}`, 20, 60);
+      ctx.textAlign = "center";
+      ctx.fillText(l.char, l.x, l.y + 7);
     }
 
-    function gameLoop() {
+    function update() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (keys.left) player.x -= 4;
+      if (keys.right) player.x += 4;
+      if (keys.up) player.vy = -4;
+      player.vy += 0.2;
+      player.y += player.vy;
 
-      heart.x += heart.dx;
-      heart.y += heart.dy;
-      heart.dy += 0.3;
+      player.y = Math.max(0, Math.min(canvas.height - player.size, player.y));
+      player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
 
-      if (heart.x < 0) heart.x = 0;
-      if (heart.x > canvas.width) heart.x = canvas.width;
-      if (heart.y > canvas.height - heart.r) {
-        heart.y = canvas.height - heart.r;
-        heart.dy = 0;
-      }
+      drawHeart(player.x, player.y);
 
-      letters.forEach(l => l.y += 2);
-      bullets.forEach(b => b.y -= 5);
+      bullets.forEach((b, i) => {
+        b.y -= 5;
+        drawBullet(b);
+        if (b.y < 0) bullets.splice(i, 1);
+      });
 
-      bullets = bullets.filter(b => b.y > 0);
-      letters = letters.filter(l => l.y < canvas.height);
-
-      for (let b of bullets) {
-        for (let i = letters.length - 1; i >= 0; i--) {
-          let l = letters[i];
-          if (
-            b.x > l.x - 10 && b.x < l.x + 30 &&
-            b.y > l.y - 30 && b.y < l.y
-          ) {
-            if (targetWord.includes(l.char)) {
-              if (!collected.includes(l.char)) {
-                collected += l.char;
-                points += 10;
-              }
-            } else {
-              collected = collected.slice(0, -1);
-              points -= 5;
-            }
+      letters.forEach((l, i) => {
+        l.y += 2;
+        drawLetter(l);
+        bullets.forEach((b, j) => {
+          const dx = l.x - b.x;
+          const dy = l.y - b.y;
+          if (dx * dx + dy * dy < 900) {
+            bullets.splice(j, 1);
             letters.splice(i, 1);
-            break;
+            if (needed[collected.length] === l.char) {
+              collected.push(l.char);
+              score += 10;
+            } else {
+              collected.pop();
+              score = Math.max(0, score - 5);
+            }
+            updateScore();
           }
-        }
+        });
+      });
+
+      if (Math.random() < 0.03) {
+        const pool = ["A", "B", "C", "L", "E", "X", "M", "N", "O", "U"];
+        let possible = needed[collected.length] || pool[Math.floor(Math.random()*pool.length)];
+        if (Math.random() < 0.7) possible = needed[collected.length];
+        letters.push({ x: Math.random() * canvas.width, y: -30, char: possible });
       }
 
-      if (collected.length >= targetWord.replaceAll(" ", "").length) {
-        level++;
-        if (level >= phrases.length) {
-          alert("¡Has completado todos los niveles!");
-          level = 0;
-          collected = "";
-          targetWord = phrases[level].toUpperCase();
-        } else {
-          alert("Nivel superado: " + phrases[level]);
-          collected = "";
-          targetWord = phrases[level].toUpperCase();
-        }
-      }
-
-      drawHeart();
-      drawLetters();
-      drawBullets();
-      drawUI();
-
-      requestAnimationFrame(gameLoop);
+      requestAnimationFrame(update);
     }
 
-    gameLoop();
+    function updateScore() {
+      document.getElementById("letters").textContent = needed.split('').map((l, i) => collected[i] || "_").join(" ");
+      document.getElementById("scoreboard").innerHTML = `Puntos: ${score} | Letras: <span id="letters">${document.getElementById("letters").textContent}</span>`;
+    }
 
-    document.getElementById("leftBtn").ontouchstart = () => heart.dx = -3;
-    document.getElementById("leftBtn").ontouchend = () => heart.dx = 0;
-    document.getElementById("rightBtn").ontouchstart = () => heart.dx = 3;
-    document.getElementById("rightBtn").ontouchend = () => heart.dx = 0;
-    document.getElementById("upBtn").ontouchstart = () => heart.dy = -6;
-    document.getElementById("shootBtn").ontouchstart = () => {
-      bullets.push({ x: heart.x, y: heart.y - heart.r });
-    };
-  </script>
-</body>
+    document.getElementById("left").ontouchstart = () => keys.left = true;
+    document.getElementById("left").ontouchend = () => keys.left = false;
+    document.getElementById("right").ontouchstart = () => keys.right = true;
+    document.getElementById("right").ontouchend = () => keys.right = false;
+    document.getElementById("up").ontouchstart = () => keys.up = true;
+    document.getElementById("up").ontouchend = () => keys.up = false;
+    document.getElementById("shoot").ontouchstart = () => bullets.push({ x: player.x, y: player.y });
+
+    update();
+  </script></body>
 </html>
