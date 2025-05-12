@@ -2,198 +2,172 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, user-scalable=no" />
-  <title>Burbujas de Amor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Rompeburbuja de Amor</title>
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: linear-gradient(to bottom, #ffe6f0, #ffb3d1);
-      font-family: sans-serif;
-    }
-    canvas {
-      display: block;
-    }
-    #controls {
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html { height: 100%; overflow: hidden; background: linear-gradient(#ffccff, #ffe6f2); font-family: sans-serif; }
+    canvas { display: block; background: transparent; }
+
+    .controls {
       position: absolute;
       bottom: 20px;
-      left: 0;
-      right: 0;
+      width: 100%;
       display: flex;
-      justify-content: space-around;
-      z-index: 10;
+      justify-content: center;
+      gap: 15px;
+      pointer-events: none;
     }
-    button {
-      padding: 15px;
-      font-size: 18px;
-      border: none;
-      border-radius: 50px;
-      background: #ff66a3;
-      color: white;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+
+    .btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: pink;
+      border: 2px solid red;
+      text-align: center;
+      line-height: 60px;
+      font-size: 30px;
+      user-select: none;
+      pointer-events: all;
+    }
+
+    #marcador {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      color: #b30059;
+      background: rgba(255, 255, 255, 0.7);
+      padding: 5px 15px;
+      border-radius: 10px;
+    }
+
+    #mensaje {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 36px;
+      color: #e60073;
+      display: none;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
-  <div id="controls">
-    <button onclick="moveLeft()">←</button>
-    <button onclick="moveUp()">↑</button>
-    <button onclick="moveRight()">→</button>
-    <button onclick="shoot()">♥</button>
+  <canvas id="juego"></canvas>
+  <div id="marcador">Letras: _ _ _ _</div>
+  <div id="mensaje"></div>
+  <div class="controls">
+    <div class="btn" id="left">&#8592;</div>
+    <div class="btn" id="shoot">&#10084;</div>
+    <div class="btn" id="right">&#8594;</div>
   </div>
 
   <script>
-    const canvas = document.getElementById("gameCanvas");
+    const canvas = document.getElementById("juego");
     const ctx = canvas.getContext("2d");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    let player = {
-      x: canvas.width / 2,
-      y: canvas.height - 100,
-      size: 40,
-      speedX: 0,
-      speedY: 0,
-      gravity: 0.5,
-      jumpPower: -10,
-    };
-
+    let heart = { x: canvas.width/2, y: canvas.height - 80, r: 25, vx: 0 };
     let bullets = [];
     let letters = [];
-    let points = 0;
-    let nextLetterThreshold = 10;
-    let target = "ÁLEX";
-    let collected = "";
+    const palabraObjetivo = ["A", "L", "E", "X"];
+    let letrasObtenidas = [];
 
-    function drawHeart(x, y, size) {
-      ctx.fillStyle = "red";
+    let keys = { left: false, right: false };
+
+    document.getElementById("left").addEventListener("touchstart", () => keys.left = true);
+    document.getElementById("left").addEventListener("touchend", () => keys.left = false);
+    document.getElementById("right").addEventListener("touchstart", () => keys.right = true);
+    document.getElementById("right").addEventListener("touchend", () => keys.right = false);
+
+    document.getElementById("shoot").addEventListener("touchstart", () => {
+      bullets.push({ x: heart.x, y: heart.y - 30 });
+    });
+
+    function crearLetra() {
+      const posibles = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const letra = posibles[Math.floor(Math.random() * posibles.length)];
+      letters.push({
+        letra,
+        x: Math.random() * (canvas.width - 30),
+        y: -50,
+        size: 30
+      });
+    }
+
+    function dibujarCorazon() {
+      ctx.fillStyle = "#ff3366";
       ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.bezierCurveTo(x - size/2, y - size/2, x - size, y + size/3, x, y + size);
-      ctx.bezierCurveTo(x + size, y + size/3, x + size/2, y - size/2, x, y);
+      ctx.moveTo(heart.x, heart.y);
+      ctx.bezierCurveTo(heart.x + 25, heart.y - 25, heart.x + 50, heart.y + 20, heart.x, heart.y + 50);
+      ctx.bezierCurveTo(heart.x - 50, heart.y + 20, heart.x - 25, heart.y - 25, heart.x, heart.y);
       ctx.fill();
     }
 
-    function drawPlayer() {
-      drawHeart(player.x, player.y, player.size);
-    }
-
-    function drawLetters() {
-      ctx.fillStyle = "#333";
-      ctx.font = "30px sans-serif";
-      letters.forEach(letter => {
-        ctx.beginPath();
-        ctx.arc(letter.x, letter.y, 25, 0, Math.PI * 2);
-        ctx.fillStyle = "#fff";
-        ctx.fill();
-        ctx.strokeStyle = "#ff66a3";
-        ctx.stroke();
-        ctx.fillStyle = "#ff66a3";
-        ctx.textAlign = "center";
-        ctx.fillText(letter.char, letter.x, letter.y + 10);
-      });
-    }
-
-    function drawBullets() {
-      ctx.fillStyle = "red";
-      bullets.forEach(b => {
-        drawHeart(b.x, b.y, 10);
-      });
-    }
-
-    function drawScore() {
-      ctx.fillStyle = "#000";
-      ctx.font = "20px sans-serif";
-      ctx.fillText("Puntos: " + points, 20, 30);
-      ctx.fillText("Progreso: " + collected, 20, 60);
-    }
-
-    function spawnLetter() {
-      const chars = "ÁLEX";
-      const char = chars[Math.floor(Math.random() * chars.length)];
-      letters.push({
-        x: Math.random() * canvas.width,
-        y: -50,
-        char: char
-      });
-    }
-
-    function shoot() {
-      bullets.push({ x: player.x, y: player.y - 10, speed: 5 });
-    }
-
-    function moveLeft() {
-      player.speedX = -5;
-    }
-
-    function moveRight() {
-      player.speedX = 5;
-    }
-
-    function moveUp() {
-      player.speedY = player.jumpPower;
-    }
-
-    function update() {
+    function dibujar() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Update player
-      player.x += player.speedX;
-      player.y += player.speedY;
-      player.speedY += player.gravity;
+      // Mover corazón
+      if (keys.left) heart.x -= 5;
+      if (keys.right) heart.x += 5;
+      heart.x = Math.max(heart.r, Math.min(canvas.width - heart.r, heart.x));
 
-      // boundaries
-      if (player.x < 0) player.x = 0;
-      if (player.x > canvas.width) player.x = canvas.width;
-      if (player.y > canvas.height - player.size) {
-        player.y = canvas.height - player.size;
-        player.speedY = 0;
-      }
+      // Dibujar corazón
+      dibujarCorazon();
 
-      // Reset horizontal speed
-      player.speedX = 0;
+      // Dibujar balas
+      ctx.fillStyle = "#ff6699";
+      bullets.forEach((b, i) => {
+        b.y -= 8;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        if (b.y < 0) bullets.splice(i, 1);
+      });
 
-      // Update bullets
-      bullets.forEach(b => b.y -= b.speed);
-      bullets = bullets.filter(b => b.y > 0);
+      // Letras
+      ctx.fillStyle = "#660033";
+      letters.forEach((l, i) => {
+        l.y += 2;
+        ctx.font = `${l.size}px sans-serif`;
+        ctx.fillText(l.letra, l.x, l.y);
 
-      // Update letters
-      letters.forEach(l => l.y += 2);
-      letters = letters.filter(l => l.y < canvas.height + 50);
-
-      // Collision detection
-      bullets.forEach((b, bi) => {
-        letters.forEach((l, li) => {
-          let dx = b.x - l.x;
-          let dy = b.y - l.y;
-          if (Math.sqrt(dx*dx + dy*dy) < 30) {
-            if (target[collected.length] === l.char) {
-              collected += l.char;
-              points += 10;
-              if (collected === target) {
-                alert("¡Has conseguido la palabra ÁLEX!");
+        // Colisión con bala
+        bullets.forEach((b, bi) => {
+          if (Math.abs(l.x - b.x) < 20 && Math.abs(l.y - b.y) < 20) {
+            if (palabraObjetivo.includes(l.letra) && !letrasObtenidas.includes(l.letra)) {
+              letrasObtenidas.push(l.letra);
+              actualizarMarcador();
+              if (letrasObtenidas.length === palabraObjetivo.length) {
+                document.getElementById("mensaje").innerHTML = "CORAZÓN<br>ÁLEX<br><br><small>By Jandro</small>";
+                document.getElementById("mensaje").style.display = "block";
               }
-            } else {
-              collected = collected.slice(0, -1);
             }
-            letters.splice(li, 1);
+            letters.splice(i, 1);
             bullets.splice(bi, 1);
           }
         });
+
+        if (l.y > canvas.height) letters.splice(i, 1);
       });
-
-      drawPlayer();
-      drawLetters();
-      drawBullets();
-      drawScore();
-
-      requestAnimationFrame(update);
     }
 
-    // Spawn letters periódicamente
-    setInterval(spawnLetter, 2000);
-    update();
+    function actualizarMarcador() {
+      const estado = palabraObjetivo.map(l => letrasObtenidas.includes(l) ? l : "_").join(" ");
+      document.getElementById("marcador").textContent = "Letras: " + estado;
+    }
+
+    setInterval(crearLetra, 1500);
+    function animar() {
+      dibujar();
+      requestAnimationFrame(animar);
+    }
+    animar();
   </script>
 </body>
 </html>
