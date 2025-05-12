@@ -2,19 +2,163 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Juego Alex</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Rompeburbuja de Amor</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #ffe6f0;
+      font-family: sans-serif;
+      touch-action: manipulation;
+    }
+    canvas {
+      display: block;
+    }
+    #btn-saltar {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      font-size: 20px;
+      background: #ff7aa2;
+      color: white;
+      border: none;
+      border-radius: 15px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      z-index: 2;
+    }
+    #marcador {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      font-size: 22px;
+      background: white;
+      padding: 8px 14px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+  </style>
 </head>
-<body><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <canvas id="gameCanvas"></canvas>
+<body>
+  <div id="marcador">Puntos: 0 | Letras: _ _ _ _</div>
+  <canvas id="juego"></canvas>
+  <button id="btn-saltar">Saltar</button>
 
-  <!-- Controles táctiles -->
-  <div id="controls">
-    <button id="btnUp">↑</button>
-    <button id="btnShoot">💘</button>
-  </div>
+  <script>
+    const canvas = document.getElementById("juego");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-  <script src="game.js"></script>
+    const marcador = document.getElementById("marcador");
+
+    let heart = {
+      x: canvas.width / 4,
+      y: canvas.height / 2,
+      radius: 25,
+      velocityY: 0,
+      gravity: 0.6,
+      jumpStrength: -10
+    };
+
+    let letras = [];
+    let puntos = 0;
+    let palabraObjetivo = ['A', 'L', 'E', 'X'];
+    let letrasObtenidas = ['', '', '', ''];
+
+    function generarLetra() {
+      const letra = {
+        x: Math.random() * (canvas.width - 30),
+        y: -40,
+        letra: String.fromCharCode(65 + Math.floor(Math.random() * 26)), // A-Z
+        velocidad: 2 + Math.random() * 2
+      };
+      letras.push(letra);
+    }
+
+    setInterval(generarLetra, 1000);
+
+    document.getElementById("btn-saltar").addEventListener("click", () => {
+      heart.velocityY = heart.jumpStrength;
+    });
+
+    function colisiona(a, b) {
+      return (
+        a.x < b.x + 25 &&
+        a.x + a.radius * 2 > b.x &&
+        a.y < b.y + 30 &&
+        a.y + a.radius * 2 > b.y
+      );
+    }
+
+    function actualizarMarcador() {
+      const letrasStr = letrasObtenidas.map(l => l || '_').join(' ');
+      marcador.textContent = `Puntos: ${puntos} | Letras: ${letrasStr}`;
+    }
+
+    function actualizar() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // gravedad
+      heart.velocityY += heart.gravity;
+      heart.y += heart.velocityY;
+
+      if (heart.y + heart.radius > canvas.height) {
+        heart.y = canvas.height - heart.radius;
+        heart.velocityY = 0;
+      }
+
+      // dibujar corazón
+      ctx.beginPath();
+      ctx.arc(heart.x, heart.y, heart.radius, 0, Math.PI * 2);
+      ctx.fillStyle = "red";
+      ctx.fill();
+
+      // letras
+      for (let i = letras.length - 1; i >= 0; i--) {
+        const l = letras[i];
+        l.y += l.velocidad;
+
+        ctx.fillStyle = "#222";
+        ctx.font = "28px Arial";
+        ctx.fillText(l.letra, l.x, l.y);
+
+        // Colisión
+        if (
+          Math.abs(heart.x - l.x) < 30 &&
+          Math.abs(heart.y - l.y) < 30
+        ) {
+          puntos += 10;
+          const idx = palabraObjetivo.indexOf(l.letra);
+          if (idx !== -1 && letrasObtenidas[idx] === '') {
+            letrasObtenidas[idx] = l.letra;
+          }
+          letras.splice(i, 1);
+          actualizarMarcador();
+        }
+
+        // borrar si sale de pantalla
+        if (l.y > canvas.height) letras.splice(i, 1);
+      }
+
+      // Victoria
+      if (letrasObtenidas.join('') === palabraObjetivo.join('')) {
+        ctx.fillStyle = "rgba(255,255,255,0.8)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#e6005c";
+        ctx.font = "40px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("¡ÁLEX!", canvas.width / 2, canvas.height / 2 - 30);
+        ctx.fillText("by Jandro", canvas.width / 2, canvas.height / 2 + 20);
+        return;
+      }
+
+      requestAnimationFrame(actualizar);
+    }
+
+    actualizar();
+  </script>
 </body>
 </html>
