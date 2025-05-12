@@ -1,22 +1,20 @@
-<!DOCTYPE html>
-<html lang="es">
+<!DOCTYPE html><html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Rompeburbuja de Amor</title>
   <style>
-    body {
+    html, body {
       margin: 0;
+      padding: 0;
       overflow: hidden;
-      background: linear-gradient(to top, #ffc0cb, #ffdde4);
-      touch-action: manipulation;
+      background-color: #ffcce0;
+      font-family: 'Arial', sans-serif;
+      touch-action: none;
     }
-
     canvas {
       display: block;
-      background-color: transparent;
     }
-
     .controls {
       position: absolute;
       bottom: 20px;
@@ -25,125 +23,110 @@
       justify-content: center;
       gap: 20px;
     }
-
-    .btn {
-      width: 70px;
-      height: 70px;
-      background-color: #f87171;
+    button {
+      width: 60px;
+      height: 60px;
       border-radius: 50%;
+      background-color: #ff6699;
       border: none;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-      font-size: 24px;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
       color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      user-select: none;
+      font-size: 24px;
+    }
+    #tutorialBox {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 20px;
+      border-radius: 12px;
+      font-size: 16px;
+      text-align: center;
+      z-index: 999;
+    }
+    #nextTutorial {
+      margin-top: 10px;
+      background: #ff6699;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 16px;
     }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
-  <div class="controls">
-    <button class="btn" id="upBtn">↑</button>
-    <button class="btn" id="shootBtn">💘</button>
-  </div>
+  <canvas id="gameCanvas" width="360" height="640"></canvas>  <div class="controls">
+    <button id="upBtn">↑</button>
+    <button id="shootBtn">❤</button>
+  </div>  <div id="tutorialBox">
+    <div id="tutorialText"></div>
+    <button id="nextTutorial">Siguiente</button>
+  </div>  <script>
+    const tutorialSteps = [
+      "¡Bienvenido a Rompeburbuja de Amor!",
+      "Usa el botón ↑ para hacer que el corazón suba.",
+      "Pulsa ❤ para lanzar corazones y romper burbujas.",
+      "Evita las letras incorrectas y consigue la palabra 'ÁLEX'.",
+      "¡Completa frases de amor en cada nivel!",
+      "¡Buena suerte y disfruta!"
+    ];
+    let currentStep = 0;
+    const tutorialText = document.getElementById('tutorialText');
+    const tutorialBox = document.getElementById('tutorialBox');
+    const nextBtn = document.getElementById('nextTutorial');
 
-  <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    function showNextStep() {
+      if (currentStep < tutorialSteps.length) {
+        tutorialText.innerText = tutorialSteps[currentStep];
+        currentStep++;
+      } else {
+        tutorialBox.style.display = 'none';
+      }
+    }
 
-    let heart = {
-      x: canvas.width / 2,
-      y: canvas.height - 100,
-      radius: 25,
-      color: "#ff5e7e",
-      vy: 0,
-      gravity: 0.6,
-      lift: -12,
-    };
+    nextBtn.addEventListener('click', showNextStep);
+    window.addEventListener('load', showNextStep);
 
-    let bullets = [];
-    let letters = [];
-    const letterSet = ["A", "L", "E", "X", "T", "Q", "U", "I", "R", "O"];
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let heart = { x: 180, y: 500, r: 20, dy: 0 };
+    const gravity = 0.5;
+    const jump = -8;
+
+    document.getElementById('upBtn').addEventListener('click', () => {
+      heart.dy = jump;
+    });
 
     function drawHeart() {
       ctx.beginPath();
-      ctx.arc(heart.x, heart.y, heart.radius, 0, Math.PI * 2);
-      ctx.fillStyle = heart.color;
+      ctx.fillStyle = '#ff3366';
+      ctx.arc(heart.x - 10, heart.y, heart.r, 0, Math.PI * 2);
+      ctx.arc(heart.x + 10, heart.y, heart.r, 0, Math.PI * 2);
+      ctx.moveTo(heart.x - 20, heart.y);
+      ctx.lineTo(heart.x, heart.y + 30);
+      ctx.lineTo(heart.x + 20, heart.y);
       ctx.fill();
-      ctx.closePath();
     }
 
-    function drawLetters() {
-      letters.forEach(letter => {
-        ctx.beginPath();
-        ctx.fillStyle = "#fff";
-        ctx.font = "30px Arial";
-        ctx.fillText(letter.char, letter.x, letter.y);
-        ctx.closePath();
-        letter.y += 2;
-      });
-    }
-
-    function drawBullets() {
-      bullets.forEach((b, i) => {
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, 10, 0, Math.PI * 2);
-        ctx.fillStyle = "#ff69b4";
-        ctx.fill();
-        ctx.closePath();
-        b.y -= 5;
-
-        letters.forEach((letter, j) => {
-          const dx = b.x - letter.x;
-          const dy = b.y - letter.y;
-          if (Math.hypot(dx, dy) < 20) {
-            bullets.splice(i, 1);
-            letters.splice(j, 1);
-          }
-        });
-      });
-    }
-
-    function update() {
+    function updateGame() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawHeart();
-      drawLetters();
-      drawBullets();
-
-      heart.vy += heart.gravity;
-      heart.y += heart.vy;
-
-      if (heart.y + heart.radius > canvas.height) {
-        heart.y = canvas.height - heart.radius;
-        heart.vy = 0;
+      heart.dy += gravity;
+      heart.y += heart.dy;
+      if (heart.y > canvas.height - heart.r) {
+        heart.y = canvas.height - heart.r;
+        heart.dy = 0;
       }
-
-      requestAnimationFrame(update);
+      if (heart.y < heart.r) {
+        heart.y = heart.r;
+        heart.dy = 0;
+      }
+      drawHeart();
+      requestAnimationFrame(updateGame);
     }
 
-    document.getElementById("upBtn").addEventListener("click", () => {
-      heart.vy = heart.lift;
-    });
-
-    document.getElementById("shootBtn").addEventListener("click", () => {
-      bullets.push({ x: heart.x, y: heart.y });
-    });
-
-    function spawnLetters() {
-      const char = letterSet[Math.floor(Math.random() * letterSet.length)];
-      letters.push({
-        char,
-        x: Math.random() * (canvas.width - 50) + 20,
-        y: -30,
-      });
-    }
-
-    setInterval(spawnLetters, 2000);
-    update();
-  </script>
-</body>
+    updateGame();
+  </script></body>
 </html>
