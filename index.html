@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Rompeburbuja de Amor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Burbujas de Amor</title>
   <style>
     html, body {
       margin: 0;
@@ -11,177 +11,184 @@
       overflow: hidden;
       background: #ffe6f0;
       touch-action: none;
-      font-family: sans-serif;
+      font-family: 'Arial', sans-serif;
     }
     canvas {
       display: block;
-      background: linear-gradient(to bottom, #ffc6d9, #fff0f5);
+      background: #ffccdd;
     }
-    .controls {
+    #controls {
       position: fixed;
-      bottom: 10px;
+      bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
       gap: 10px;
+      z-index: 10;
     }
-    button {
-      padding: 12px;
-      font-size: 18px;
+    .btn {
+      width: 60px;
+      height: 60px;
+      background: pink;
       border: none;
-      border-radius: 10px;
-      background: #ff8ab8;
-      color: white;
-      box-shadow: 0 4px #d14d7f;
-    }
-    button:active {
-      transform: translateY(2px);
-      box-shadow: 0 2px #d14d7f;
+      border-radius: 50%;
+      font-size: 20px;
+      box-shadow: 2px 2px 8px #0003;
+      user-select: none;
     }
   </style>
 </head>
 <body>
-<canvas id="game"></canvas>
-<div class="controls">
-  <button id="left">◀</button>
-  <button id="up">↑</button>
-  <button id="right">▶</button>
-  <button id="shoot">♥</button>
-</div>
+  <canvas id="gameCanvas"></canvas>
+  <div id="controls">
+    <button class="btn" id="leftBtn">←</button>
+    <button class="btn" id="upBtn">↑</button>
+    <button class="btn" id="rightBtn">→</button>
+    <button class="btn" id="shootBtn">❤</button>
+  </div>
 
-<script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-let w, h;
-function resize() {
-  w = canvas.width = window.innerWidth;
-  h = canvas.height = window.innerHeight;
-}
-window.addEventListener("resize", resize);
-resize();
+    let heart = { x: canvas.width / 2, y: canvas.height / 2, r: 30, dx: 0, dy: 0 };
+    let letters = [];
+    let bullets = [];
+    let targetWord = "ÁLEX";
+    let collected = "";
+    let points = 0;
+    let level = 0;
+    const phrases = [
+      "ÁLEX", "TE QUIERO", "TE QUIERO, ÁLEX", "SIEMPRE CONTIGO",
+      "ERES MI TODO", "MI VIDA ERES TÚ", "NUNCA TE OLVIDO",
+      "AMOR INFINITO", "CADA DÍA MÁS", "JUNTOS POR SIEMPRE"
+    ];
 
-// Variables del juego
-let player = { x: w / 2, y: h / 2, r: 20, vy: 0, vx: 0 };
-let gravity = 0.5;
-let letters = [];
-let bullets = [];
-let score = 0;
-let targetWord = "ALEX";
-let collected = "";
-let level = 0;
-let phrases = [
-  "ALEX", "TE QUIERO, ALEX", "ERES MI TODO", "CADA LETRA TUYA", 
-  "ES MI ALEGRÍA", "MI CORAZÓN LATE", "POR TI", "HASTA EL FINAL", 
-  "NO HAY NADIE MÁS", "TE AMO, ALEX"
-];
+    function spawnLetter() {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚ";
+      const needed = targetWord.replaceAll(" ", "").split("").filter(c => !collected.includes(c));
+      const pool = [...needed, ...Array(5).fill(null).map(() => chars[Math.floor(Math.random() * chars.length)])];
+      const char = pool[Math.floor(Math.random() * pool.length)];
+      letters.push({
+        char,
+        x: Math.random() * (canvas.width - 40) + 20,
+        y: -50,
+        size: 36
+      });
+    }
 
-// Genera una letra aleatoria
-function randomLetter() {
-  const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  return abc[Math.floor(Math.random() * abc.length)];
-}
+    setInterval(spawnLetter, 1200);
 
-function spawnLetter() {
-  let letter = {
-    x: Math.random() * (w - 30) + 15,
-    y: -20,
-    char: randomLetter(),
-    hit: false
-  };
-  // Asegura que al menos algunas letras sean del objetivo
-  if (Math.random() < 0.3 && collected.length < targetWord.length)
-    letter.char = targetWord[collected.length];
-  letters.push(letter);
-}
+    function drawHeart() {
+      ctx.beginPath();
+      ctx.fillStyle = "red";
+      const { x, y, r } = heart;
+      ctx.moveTo(x, y);
+      ctx.bezierCurveTo(x - r, y - r, x - r * 2, y + r / 2, x, y + r * 2);
+      ctx.bezierCurveTo(x + r * 2, y + r / 2, x + r, y - r, x, y);
+      ctx.fill();
+    }
 
-function update() {
-  player.vy += gravity;
-  player.y += player.vy;
-  player.x += player.vx;
-  player.x = Math.max(player.r, Math.min(w - player.r, player.x));
-  player.y = Math.max(player.r, Math.min(h - player.r, player.y));
-
-  letters.forEach(l => l.y += 2);
-  bullets.forEach(b => b.y -= 8);
-
-  // Colisiones bala-letra
-  bullets.forEach((b, bi) => {
-    letters.forEach((l, li) => {
-      let dx = b.x - l.x;
-      let dy = b.y - l.y;
-      if (Math.sqrt(dx * dx + dy * dy) < 20 && !l.hit) {
-        l.hit = true;
-        if (l.char === targetWord[collected.length]) {
-          collected += l.char;
-          score += 10;
-        } else {
-          if (collected.length > 0) collected = collected.slice(0, -1);
-        }
-        bullets.splice(bi, 1);
+    function drawLetters() {
+      for (let l of letters) {
+        ctx.fillStyle = "#333";
+        ctx.font = `${l.size}px bold Arial`;
+        ctx.fillText(l.char, l.x, l.y);
       }
-    });
-  });
+    }
 
-  letters = letters.filter(l => l.y < h && !l.hit);
-  bullets = bullets.filter(b => b.y > 0);
+    function drawBullets() {
+      ctx.fillStyle = "pink";
+      for (let b of bullets) {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
 
-  if (collected === targetWord) {
-    level++;
-    if (level >= phrases.length) level = 0;
-    targetWord = phrases[level].replace(/[^A-Z]/gi, "");
-    collected = "";
-  }
-}
+    function drawUI() {
+      ctx.fillStyle = "#222";
+      ctx.font = "20px sans-serif";
+      ctx.fillText(`Frase: ${phrases[level]}`, 20, 30);
+      ctx.fillText(`Letras: ${collected}`, 20, 60);
+    }
 
-function draw() {
-  ctx.clearRect(0, 0, w, h);
-  // Fondo
-  ctx.fillStyle = "#fff0f5";
-  ctx.fillRect(0, 0, w, h);
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Letras
-  ctx.font = "20px Arial";
-  letters.forEach(l => {
-    ctx.fillStyle = l.char === targetWord[collected.length] ? "#ff69b4" : "#999";
-    ctx.fillText(l.char, l.x, l.y);
-  });
+      heart.x += heart.dx;
+      heart.y += heart.dy;
+      heart.dy += 0.3;
 
-  // Jugador
-  ctx.beginPath();
-  ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
-  ctx.fillStyle = "#ff3366";
-  ctx.fill();
+      if (heart.x < 0) heart.x = 0;
+      if (heart.x > canvas.width) heart.x = canvas.width;
+      if (heart.y > canvas.height - heart.r) {
+        heart.y = canvas.height - heart.r;
+        heart.dy = 0;
+      }
 
-  // Balas
-  ctx.fillStyle = "#d14d7f";
-  bullets.forEach(b => ctx.fillRect(b.x - 2, b.y - 10, 4, 10));
+      letters.forEach(l => l.y += 2);
+      bullets.forEach(b => b.y -= 5);
 
-  // Texto
-  ctx.fillStyle = "#333";
-  ctx.fillText("Frase: " + phrases[level], 10, 20);
-  ctx.fillText("Progreso: " + collected, 10, 40);
-  ctx.fillText("Puntos: " + score, 10, 60);
-}
+      bullets = bullets.filter(b => b.y > 0);
+      letters = letters.filter(l => l.y < canvas.height);
 
-function gameLoop() {
-  update();
-  draw();
-  requestAnimationFrame(gameLoop);
-}
-gameLoop();
+      for (let b of bullets) {
+        for (let i = letters.length - 1; i >= 0; i--) {
+          let l = letters[i];
+          if (
+            b.x > l.x - 10 && b.x < l.x + 30 &&
+            b.y > l.y - 30 && b.y < l.y
+          ) {
+            if (targetWord.includes(l.char)) {
+              if (!collected.includes(l.char)) {
+                collected += l.char;
+                points += 10;
+              }
+            } else {
+              collected = collected.slice(0, -1);
+              points -= 5;
+            }
+            letters.splice(i, 1);
+            break;
+          }
+        }
+      }
 
-// Controles
-document.getElementById("left").addEventListener("touchstart", () => player.vx = -5);
-document.getElementById("right").addEventListener("touchstart", () => player.vx = 5);
-document.getElementById("left").addEventListener("touchend", () => player.vx = 0);
-document.getElementById("right").addEventListener("touchend", () => player.vx = 0);
-document.getElementById("up").addEventListener("touchstart", () => player.vy = -8);
-document.getElementById("shoot").addEventListener("touchstart", () => {
-  bullets.push({ x: player.x, y: player.y - player.r });
-});
+      if (collected.length >= targetWord.replaceAll(" ", "").length) {
+        level++;
+        if (level >= phrases.length) {
+          alert("¡Has completado todos los niveles!");
+          level = 0;
+          collected = "";
+          targetWord = phrases[level].toUpperCase();
+        } else {
+          alert("Nivel superado: " + phrases[level]);
+          collected = "";
+          targetWord = phrases[level].toUpperCase();
+        }
+      }
 
-setInterval(spawnLetter, 1000);
-</script>
+      drawHeart();
+      drawLetters();
+      drawBullets();
+      drawUI();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+
+    document.getElementById("leftBtn").ontouchstart = () => heart.dx = -3;
+    document.getElementById("leftBtn").ontouchend = () => heart.dx = 0;
+    document.getElementById("rightBtn").ontouchstart = () => heart.dx = 3;
+    document.getElementById("rightBtn").ontouchend = () => heart.dx = 0;
+    document.getElementById("upBtn").ontouchstart = () => heart.dy = -6;
+    document.getElementById("shootBtn").ontouchstart = () => {
+      bullets.push({ x: heart.x, y: heart.y - heart.r });
+    };
+  </script>
 </body>
 </html>
