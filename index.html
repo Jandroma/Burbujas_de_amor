@@ -4,192 +4,134 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Rompeburbuja de Amor</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      user-select: none;
-    }
-    html, body {
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(to bottom, #ffe0e0, #ffc0cb);
-      overflow: hidden;
-    }
-    canvas {
-      background: #fff;
-      display: block;
-      touch-action: none;
-    }
-    #controls {
-      position: fixed;
-      bottom: 0;
-      width: 100%;
-      height: 100px;
-      background: #000;
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      z-index: 10;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background: #f0e6f6; }
+    canvas { display: block; background: linear-gradient(to top, #ffccff, #ffe6f2); }
+    .controls {
+      position: absolute;
+      bottom: 0; left: 0; width: 100%; height: 80px;
+      background: black;
+      display: flex; justify-content: space-around; align-items: center;
     }
     button {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      border: none;
-      background: #ff6781;
-      color: white;
+      background: white; border: none; border-radius: 50%; width: 60px; height: 60px;
       font-size: 24px;
-      font-weight: bold;
     }
-    #progress {
-      position: fixed;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255,255,255,0.7);
-      padding: 10px 20px;
-      border-radius: 20px;
-      font-weight: bold;
+    #letras-conseguidas {
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      font-size: 24px; background: rgba(255,255,255,0.7); padding: 5px 10px; border-radius: 10px;
     }
   </style>
 </head>
 <body>
-  <canvas id="game"></canvas>
-  <div id="progress"></div>
-  <div id="controls">
-    <button id="left">←</button>
-    <button id="right">→</button>
-    <button id="up">↑</button>
-    <button id="shoot">♥</button>
-  </div>
-  <script>
-    const frases = [
-      "ÁLEX",
-      "TE QUIERO ÁLEX",
-      "ERES LO MEJOR",
-      "MI VIDA CONTIGO",
-      "NO DEJO DE PENSAR EN TI",
-      "TÚ Y YO PARA SIEMPRE",
-      "GRACIAS POR ESTAR",
-      "ME ENCANTAS",
-      "MI PERSONA FAVORITA",
-      "TE AMO CON EL ALMA"
-    ];
+  <canvas id="juego"></canvas>
+  <div id="letras-conseguidas"></div>
+  <div class="controls">
+    <button id="izquierda">⯇</button>
+    <button id="arriba">⬆</button>
+    <button id="derecha">⯈</button>
+    <button id="disparar">❤</button>
+  </div>  <script>
+    const canvas = document.getElementById("juego");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight - 80;
+
+    let corazon = { x: canvas.width / 2, y: canvas.height - 100, size: 40, vx: 0, vy: 0 };
+    const gravedad = 0.5;
+    const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    let letrasCaen = [];
+    let disparos = [];
+    let objetivo = ["ÁLEX", "TE QUIERO ÁLEX", "SIEMPRE JUNTOS", "MI VIDA ERES TÚ", "NUNCA TE OLVIDO", "ERES MI TODO", "MI CORAZÓN ES TUYO", "SUEÑO CONTIGO", "ERES INCREÍBLE", "TE AMARÉ SIEMPRE"];
     let nivel = parseInt(localStorage.getItem("nivel")) || 0;
-    let canvas = document.getElementById("game");
-    let ctx = canvas.getContext("2d");
-    let width = window.innerWidth;
-    let height = window.innerHeight - 100;
-    canvas.width = width;
-    canvas.height = height;let corazon = { x: width / 2, y: height - 120, r: 20, vy: 0 };
-let letras = [];
-let proyectiles = [];
-let fraseObjetivo = frases[nivel];
-let recolectadas = [];
-let teclas = {};
+    let progreso = "";
 
-function generarLetra() {
-  let posibles = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ";
-  let necesarias = fraseObjetivo.replace(/ /g, "").split("").filter(l => !recolectadas.includes(l));
-  let letra = Math.random() < 0.6 && necesarias.length > 0
-    ? necesarias[Math.floor(Math.random() * necesarias.length)]
-    : posibles[Math.floor(Math.random() * posibles.length)];
-  letras.push({ x: Math.random() * (width - 40), y: -30, l: letra });
-}
+    function nuevaLetra() {
+      const necesarias = objetivo[nivel].replace(/[^A-ZÁÉÍÓÚÑ]/gi, "").split("").filter(l => !progreso.includes(l));
+      const esNecesaria = Math.random() < 0.7 && necesarias.length > 0;
+      const letra = esNecesaria ? necesarias[Math.floor(Math.random() * necesarias.length)] : letras[Math.floor(Math.random() * letras.length)];
+      letrasCaen.push({
+        x: Math.random() * canvas.width,
+        y: -50,
+        letra,
+        size: 40
+      });
+    }
 
-function dibujar() {
-  ctx.clearRect(0, 0, width, height);
+    function disparar() {
+      disparos.push({ x: corazon.x, y: corazon.y, r: 10 });
+    }
 
-  // Letras
-  ctx.font = "28px Arial";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  letras.forEach((letra, i) => {
-    ctx.beginPath();
-    ctx.arc(letra.x, letra.y, 30, 0, Math.PI * 2);
-    ctx.fillStyle = "#ffb6c1";
-    ctx.fill();
-    ctx.fillStyle = "#000";
-    ctx.fillText(letra.l, letra.x, letra.y);
-    letra.y += 2;
-    if (letra.y > height) letras.splice(i, 1);
-  });
+    function actualizar() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Proyectiles
-  proyectiles.forEach((p, i) => {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
-    ctx.fillStyle = "red";
-    ctx.fill();
-    p.y -= 6;
+      corazon.vy += gravedad;
+      corazon.y += corazon.vy;
+      corazon.x += corazon.vx;
 
-    letras.forEach((letra, j) => {
-      let dx = letra.x - p.x;
-      let dy = letra.y - p.y;
-      if (Math.sqrt(dx*dx + dy*dy) < 40) {
-        if (fraseObjetivo.replace(/ /g, "").includes(letra.l)) {
-          if (!recolectadas.includes(letra.l)) recolectadas.push(letra.l);
-        } else {
-          recolectadas.pop();
-        }
-        letras.splice(j, 1);
-        proyectiles.splice(i, 1);
+      if (corazon.y > canvas.height - 120) {
+        corazon.y = canvas.height - 120;
+        corazon.vy = 0;
       }
-    });
 
-    if (p.y < 0) proyectiles.splice(i, 1);
-  });
+      ctx.fillStyle = "red";
+      ctx.beginPath();
+      ctx.arc(corazon.x, corazon.y, corazon.size, 0, Math.PI * 2);
+      ctx.fill();
 
-  // Corazón
-  ctx.beginPath();
-  ctx.arc(corazon.x, corazon.y, corazon.r, 0, Math.PI * 2);
-  ctx.fillStyle = "red";
-  ctx.fill();
+      for (let l of letrasCaen) {
+        l.y += 2;
+        ctx.fillStyle = "#333";
+        ctx.font = l.size + "px Arial";
+        ctx.fillText(l.letra, l.x, l.y);
+      }
 
-  // Gravedad
-  corazon.vy += 0.4;
-  corazon.y += corazon.vy;
-  if (corazon.y > height - 120) {
-    corazon.y = height - 120;
-    corazon.vy = 0;
-  }
+      for (let d of disparos) {
+        d.y -= 5;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r * 2, 0, Math.PI * 2);
+        ctx.fillStyle = "pink";
+        ctx.fill();
+      }
 
-  // Movimiento lateral
-  if (teclas["left"] && corazon.x > 20) corazon.x -= 4;
-  if (teclas["right"] && corazon.x < width - 20) corazon.x += 4;
+      letrasCaen = letrasCaen.filter(l => {
+        for (let d of disparos) {
+          if (Math.abs(l.x - d.x) < 30 && Math.abs(l.y - d.y) < 30) {
+            if (objetivo[nivel].includes(l.letra)) {
+              if (!progreso.includes(l.letra)) progreso += l.letra;
+              if ([...objetivo[nivel]].filter(l => /[A-ZÁÉÍÓÚÑ]/.test(l)).every(l => progreso.includes(l))) {
+                nivel++;
+                progreso = "";
+                localStorage.setItem("nivel", nivel);
+              }
+            } else {
+              progreso = progreso.slice(0, -1);
+            }
+            disparos = disparos.filter(p => p !== d);
+            return false;
+          }
+        }
+        return l.y < canvas.height;
+      });
 
-  document.getElementById("progress").innerText = recolectadas.join("") + " / " + fraseObjetivo;
+      document.getElementById("letras-conseguidas").innerText = progreso;
+    }
 
-  if (recolectadas.length === fraseObjetivo.replace(/ /g, "").length) {
-    nivel++;
-    if (nivel >= frases.length) nivel = 0;
-    localStorage.setItem("nivel", nivel);
-    fraseObjetivo = frases[nivel];
-    recolectadas = [];
-    letras = [];
-    proyectiles = [];
-    alert("¡Nivel completado! Próxima frase: " + fraseObjetivo);
-  }
+    setInterval(() => {
+      nuevaLetra();
+    }, 1500);
 
-  requestAnimationFrame(dibujar);
-}
+    function loop() {
+      actualizar();
+      requestAnimationFrame(loop);
+    }
 
-setInterval(generarLetra, 1000);
+    loop();
 
-document.getElementById("up").addEventListener("touchstart", () => {
-  corazon.vy = -8;
-});
-document.getElementById("left").addEventListener("touchstart", () => teclas["left"] = true);
-document.getElementById("left").addEventListener("touchend", () => teclas["left"] = false);
-document.getElementById("right").addEventListener("touchstart", () => teclas["right"] = true);
-document.getElementById("right").addEventListener("touchend", () => teclas["right"] = false);
-document.getElementById("shoot").addEventListener("touchstart", () => {
-  proyectiles.push({ x: corazon.x, y: corazon.y });
-});
-
-dibujar();
-
-  </script>
-</body>
+    document.getElementById("arriba").ontouchstart = () => { corazon.vy = -10; };
+    document.getElementById("izquierda").ontouchstart = () => { corazon.vx = -5; };
+    document.getElementById("derecha").ontouchstart = () => { corazon.vx = 5; };
+    document.getElementById("disparar").ontouchstart = () => { disparar(); };
+    document.querySelectorAll("button").forEach(btn => btn.ontouchend = () => { corazon.vx = 0; });
+  </script></body>
 </html>
