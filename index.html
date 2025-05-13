@@ -1,155 +1,195 @@
 <!DOCTYPE html><html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Rompeburbuja de Amor</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; font-family: sans-serif; }
-    canvas { background: linear-gradient(to bottom, #ffdee9, #b5fffc); display: block; margin: 0 auto; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, #ffe0e0, #ffc0cb);
+      overflow: hidden;
+    }
+    canvas {
+      background: #fff;
+      display: block;
+      touch-action: none;
+    }
     #controls {
-      position: absolute;
+      position: fixed;
       bottom: 0;
       width: 100%;
-      height: 120px;
-      background: rgba(255, 255, 255, 0.2);
+      height: 100px;
+      background: #000;
       display: flex;
       justify-content: space-around;
       align-items: center;
+      z-index: 10;
     }
-    .btn {
-      width: 60px; height: 60px;
+    button {
+      width: 60px;
+      height: 60px;
       border-radius: 50%;
       border: none;
-      background-color: #ff5e8e;
+      background: #ff6781;
       color: white;
-      font-size: 20px;
+      font-size: 24px;
+      font-weight: bold;
     }
-    #scoreboard {
-      position: absolute;
-      top: 10px; left: 10px;
-      background: rgba(0,0,0,0.4);
-      color: white;
-      padding: 10px;
-      border-radius: 10px;
-      font-size: 18px;
+    #progress {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.7);
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
   <canvas id="game"></canvas>
+  <div id="progress"></div>
   <div id="controls">
-    <button class="btn" id="left">◀️</button>
-    <button class="btn" id="up">🔼</button>
-    <button class="btn" id="right">▶️</button>
-    <button class="btn" id="shoot">❤️</button>
+    <button id="left">←</button>
+    <button id="right">→</button>
+    <button id="up">↑</button>
+    <button id="shoot">♥</button>
   </div>
-  <div id="scoreboard">Puntos: 0 | Letras: <span id="letters">_ _ _ _</span></div>  <script>
-    const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight - 120;
+  <script>
+    const frases = [
+      "ÁLEX",
+      "TE QUIERO ÁLEX",
+      "ERES LO MEJOR",
+      "MI VIDA CONTIGO",
+      "NO DEJO DE PENSAR EN TI",
+      "TÚ Y YO PARA SIEMPRE",
+      "GRACIAS POR ESTAR",
+      "ME ENCANTAS",
+      "MI PERSONA FAVORITA",
+      "TE AMO CON EL ALMA"
+    ];
+    let nivel = parseInt(localStorage.getItem("nivel")) || 0;
+    let canvas = document.getElementById("game");
+    let ctx = canvas.getContext("2d");
+    let width = window.innerWidth;
+    let height = window.innerHeight - 100;
+    canvas.width = width;
+    canvas.height = height;let corazon = { x: width / 2, y: height - 120, r: 20, vy: 0 };
+let letras = [];
+let proyectiles = [];
+let fraseObjetivo = frases[nivel];
+let recolectadas = [];
+let teclas = {};
 
-    const player = { x: canvas.width/2, y: canvas.height/2, vx: 0, vy: 0, size: 40 };
-    const keys = { left: false, right: false, up: false };
-    const bullets = [];
-    const letters = [];
-    let score = 0;
-    const needed = "ÁLEX";
-    let collected = [];
+function generarLetra() {
+  let posibles = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ";
+  let necesarias = fraseObjetivo.replace(/ /g, "").split("").filter(l => !recolectadas.includes(l));
+  let letra = Math.random() < 0.6 && necesarias.length > 0
+    ? necesarias[Math.floor(Math.random() * necesarias.length)]
+    : posibles[Math.floor(Math.random() * posibles.length)];
+  letras.push({ x: Math.random() * (width - 40), y: -30, l: letra });
+}
 
-    function drawHeart(x, y) {
-      ctx.fillStyle = "#ff3366";
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.bezierCurveTo(x, y - 15, x - 25, y - 15, x - 25, y);
-      ctx.bezierCurveTo(x - 25, y + 15, x, y + 30, x, y + 40);
-      ctx.bezierCurveTo(x, y + 30, x + 25, y + 15, x + 25, y);
-      ctx.bezierCurveTo(x + 25, y - 15, x, y - 15, x, y);
-      ctx.fill();
-    }
+function dibujar() {
+  ctx.clearRect(0, 0, width, height);
 
-    function drawBullet(b) {
-      ctx.fillStyle = "#ff6699";
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, 10, 0, Math.PI * 2);
-      ctx.fill();
-    }
+  // Letras
+  ctx.font = "28px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  letras.forEach((letra, i) => {
+    ctx.beginPath();
+    ctx.arc(letra.x, letra.y, 30, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffb6c1";
+    ctx.fill();
+    ctx.fillStyle = "#000";
+    ctx.fillText(letra.l, letra.x, letra.y);
+    letra.y += 2;
+    if (letra.y > height) letras.splice(i, 1);
+  });
 
-    function drawLetter(l) {
-      ctx.fillStyle = "#fff";
-      ctx.beginPath();
-      ctx.arc(l.x, l.y, 25, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#000";
-      ctx.font = "20px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(l.char, l.x, l.y + 7);
-    }
+  // Proyectiles
+  proyectiles.forEach((p, i) => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+    ctx.fillStyle = "red";
+    ctx.fill();
+    p.y -= 6;
 
-    function update() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (keys.left) player.x -= 4;
-      if (keys.right) player.x += 4;
-      if (keys.up) player.vy = -4;
-      player.vy += 0.2;
-      player.y += player.vy;
-
-      player.y = Math.max(0, Math.min(canvas.height - player.size, player.y));
-      player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
-
-      drawHeart(player.x, player.y);
-
-      bullets.forEach((b, i) => {
-        b.y -= 5;
-        drawBullet(b);
-        if (b.y < 0) bullets.splice(i, 1);
-      });
-
-      letters.forEach((l, i) => {
-        l.y += 2;
-        drawLetter(l);
-        bullets.forEach((b, j) => {
-          const dx = l.x - b.x;
-          const dy = l.y - b.y;
-          if (dx * dx + dy * dy < 900) {
-            bullets.splice(j, 1);
-            letters.splice(i, 1);
-            if (needed[collected.length] === l.char) {
-              collected.push(l.char);
-              score += 10;
-            } else {
-              collected.pop();
-              score = Math.max(0, score - 5);
-            }
-            updateScore();
-          }
-        });
-      });
-
-      if (Math.random() < 0.03) {
-        const pool = ["A", "B", "C", "L", "E", "X", "M", "N", "O", "U"];
-        let possible = needed[collected.length] || pool[Math.floor(Math.random()*pool.length)];
-        if (Math.random() < 0.7) possible = needed[collected.length];
-        letters.push({ x: Math.random() * canvas.width, y: -30, char: possible });
+    letras.forEach((letra, j) => {
+      let dx = letra.x - p.x;
+      let dy = letra.y - p.y;
+      if (Math.sqrt(dx*dx + dy*dy) < 40) {
+        if (fraseObjetivo.replace(/ /g, "").includes(letra.l)) {
+          if (!recolectadas.includes(letra.l)) recolectadas.push(letra.l);
+        } else {
+          recolectadas.pop();
+        }
+        letras.splice(j, 1);
+        proyectiles.splice(i, 1);
       }
+    });
 
-      requestAnimationFrame(update);
-    }
+    if (p.y < 0) proyectiles.splice(i, 1);
+  });
 
-    function updateScore() {
-      document.getElementById("letters").textContent = needed.split('').map((l, i) => collected[i] || "_").join(" ");
-      document.getElementById("scoreboard").innerHTML = `Puntos: ${score} | Letras: <span id="letters">${document.getElementById("letters").textContent}</span>`;
-    }
+  // Corazón
+  ctx.beginPath();
+  ctx.arc(corazon.x, corazon.y, corazon.r, 0, Math.PI * 2);
+  ctx.fillStyle = "red";
+  ctx.fill();
 
-    document.getElementById("left").ontouchstart = () => keys.left = true;
-    document.getElementById("left").ontouchend = () => keys.left = false;
-    document.getElementById("right").ontouchstart = () => keys.right = true;
-    document.getElementById("right").ontouchend = () => keys.right = false;
-    document.getElementById("up").ontouchstart = () => keys.up = true;
-    document.getElementById("up").ontouchend = () => keys.up = false;
-    document.getElementById("shoot").ontouchstart = () => bullets.push({ x: player.x, y: player.y });
+  // Gravedad
+  corazon.vy += 0.4;
+  corazon.y += corazon.vy;
+  if (corazon.y > height - 120) {
+    corazon.y = height - 120;
+    corazon.vy = 0;
+  }
 
-    update();
-  </script></body>
+  // Movimiento lateral
+  if (teclas["left"] && corazon.x > 20) corazon.x -= 4;
+  if (teclas["right"] && corazon.x < width - 20) corazon.x += 4;
+
+  document.getElementById("progress").innerText = recolectadas.join("") + " / " + fraseObjetivo;
+
+  if (recolectadas.length === fraseObjetivo.replace(/ /g, "").length) {
+    nivel++;
+    if (nivel >= frases.length) nivel = 0;
+    localStorage.setItem("nivel", nivel);
+    fraseObjetivo = frases[nivel];
+    recolectadas = [];
+    letras = [];
+    proyectiles = [];
+    alert("¡Nivel completado! Próxima frase: " + fraseObjetivo);
+  }
+
+  requestAnimationFrame(dibujar);
+}
+
+setInterval(generarLetra, 1000);
+
+document.getElementById("up").addEventListener("touchstart", () => {
+  corazon.vy = -8;
+});
+document.getElementById("left").addEventListener("touchstart", () => teclas["left"] = true);
+document.getElementById("left").addEventListener("touchend", () => teclas["left"] = false);
+document.getElementById("right").addEventListener("touchstart", () => teclas["right"] = true);
+document.getElementById("right").addEventListener("touchend", () => teclas["right"] = false);
+document.getElementById("shoot").addEventListener("touchstart", () => {
+  proyectiles.push({ x: corazon.x, y: corazon.y });
+});
+
+dibujar();
+
+  </script>
+</body>
 </html>
